@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Nobis Access</title>
+    <style>
+        body { font-family: sans-serif; margin: 20px; }
+        form { margin-bottom: 20px; padding: 15px; border: 1px solid #ccc; border-radius: 5px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        input[type="text"], input[type="submit"] { margin-bottom: 10px; padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
+        input[type="submit"] { background-color: #4CAF50; color: white; cursor: pointer; border: none; }
+        input[type="submit"]:hover { background-color: #45a049; }
+        code { background-color: #f4f4f4; padding: 2px 5px; border-radius: 4px; }
+    </style>
+</head>
+<body>
+
+    <h1>Acceso Nobis</h1>
+
+    <h2>Ingresa con tu código de acceso</h2>
+    <p>Utiliza el código proporcionado para continuar.</p>
+    <form action="/login" method="post">
+        <label for="access_code">Código de acceso:</label>
+        <input type="text" id="access_code" name="access_code" required><br>
+
+        <input type="submit" value="Continuar">
+    </form>
+
+</body>
+</html>

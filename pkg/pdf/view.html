@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Unir PDFs</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body {
+      background: #f4f7fa;
+      font-family: 'Segoe UI', Arial, sans-serif;
+      color: #222;
+      margin: 0;
+      padding: 0;
+    }
+    .container {
+      max-width: 440px;
+      margin: 40px auto;
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 4px 24px rgba(66,153,225,0.10);
+      padding: 28px 28px 20px 28px;
+    }
+    h2 {
+      margin-top: 0;
+      font-weight: 700;
+      color: #5b21b6;
+      text-align: center;
+      letter-spacing: 1px;
+      margin-bottom: 24px;
+    }
+    .step {
+      display: none;
+      margin-bottom: 24px;
+      animation: fadeIn 0.5s;
+    }
+    .step.active {
+      display: block;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px);}
+      to { opacity: 1; transform: translateY(0);}
+    }
+    label {
+      display: block;
+      font-weight: 500;
+      margin-bottom: 6px;
+      color: #2563eb;
+    }
+    input[type="text"], input[type="file"] {
+      border:5px solid #a5b4fc;
+      border-radius: 6px;
+      font-size: 1em;
+      background: #f3f3fd;
+      transition: border 0.2s;
+    }
+    input[type="text"]:focus, input[type="file"]:focus {
+      border-color: #2563eb;
+      cursor: pointer;
+    }
+    button:disabled {
+      background: #b6bbc6;
+      cursor: not-allowed;
+    }
+    ul {
+      list-style: none;
+      padding: 0;
+      margin: 0 0 12px 0;
+    }
+    ul li {
+      background: #dbeafe;
+      margin-bottom: 6px;
+      padding: 8px 12px;
+      border-radius: 4px;
+      color: #2563eb;
+      font-size: 0.98em;
+    }
+    .status {
+      margin: 10px 0 0 0;
+      font-size: 0.98em;
+      color: #059669;
+      min-height: 20px;
+    }
+    .error {
+      color: #b91c1c;
+    }
+    #downloadLink {
+      display: none;
+      margin-top: 16px;
+      background: #059669;
+      color: #fff;
+      padding: 10px 18px;
+      border-radius: 6px;
+      text-decoration: none;
+      font-weight: 500;
+      transition: background 0.2s;
+      text-align: center #047857;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Unir PDFs</h2>
+    <!-- Paso 1: Nombre PDF -->
+    <div class="step active" id="step1">
+      <label for="pdfName">Escribe el nombre del PDF final:</label>
+      <input type="text" id="pdfName" placeholder="Ej: reporte_final" required>
+      <button onclick="nextStepName()">Continuar</button>
+    </div>
+    <!-- Paso 2: Subir archivos -->
+    <!-- Paso 3: Listar archivos -->
+    <div class="step" id="step2">
+        <form id="uploadForm" enctype="multipart/form-data">
+          <input type="text" name="folder" id="uploadFolder" placeholder="Nombre del PDF final" required hidden>
+          <input type="file" name="pdfs" id="pdfs" multiple required accept="application/pdf">
+          <button type="submit">Agregar PDFs</button>
+        </form>
+      <div class="status" id="uploadStatus"></div>
+
+      <ul id="fileList"></ul>
+      <button id="generateBtn" disabled onclick="unirPDFs()">Unir PDFs</button>
+      <div class="status" id="generateStatus"></div>
+    </div>
+    <!-- Paso 4: Descargar -->
+    <div class="step" id="step3">
+      <a id="downloadLink" target="_blank">Descargar PDF Unificado</a>
+    </div>
+  </div>
+  <script>
+    let pdfName = "";
+
+    // Paso 1: Guardar nombre y avanzar 
+    function nextStepName() {
+      const nameInput = document.getElementById('pdfName');
+      if (!nameInput.value.trim()) {
+        nameInput.focus();
+        return;
+      }
+      pdfName = nameInput.value.trim();
+      document.getElementById('step1').classList.remove('active');
+      document.getElementById('step2').classList.add('active');
+          listarArchivos();
+      document.getElementById('uploadFolder').value = pdfName
+    }
+
+    // Paso 2: Subir archivos
+    const uploadFormFn = async function(e) {
+      e.preventDefault();
+      const form = e.target;
+      const data = new FormData(form);
+      document.getElementById('uploadStatus').textContent = "Subiendo archivos...";
+      try {
+        const res = await fetch('/upload', { method: 'POST', body: data });
+        const msg = await res.text();
+        if (res.ok) {
+          document.getElementById('uploadStatus').textContent = "¡Nuevos archivos subidos!";
+          listarArchivos();
+        } else {
+          document.getElementById('uploadStatus').textContent = msg;
+          document.getElementById('uploadStatus').classList.add('error');
+        }
+      } catch (err) {
+        document.getElementById('uploadStatus').textContent = "Error al subir archivos";
+        document.getElementById('uploadStatus').classList.add('error');
+      }
+    };
+    document.getElementById('uploadForm').onsubmit = uploadFormFn
+
+    // Paso 3: Listar archivos
+    async function listarArchivos() {
+      const res = await fetch('/list?folder='+encodeURIComponent(pdfName));
+      const files = await res.json();
+      const ul = document.getElementById('fileList');
+      ul.innerHTML = '';
+      files.forEach(f => {
+        const li = document.createElement('li');
+        li.textContent = f;
+        ul.appendChild(li);
+      });
+      document.getElementById('generateBtn').disabled = files.length === 0;
+    }
+
+    // Paso 3: Unir PDFs
+    async function unirPDFs() {
+      document.getElementById('generateStatus').textContent = "Uniendo PDFs...";
+      const formData = new FormData();
+      formData.append('folder', pdfName);
+      const res = await fetch('/generate', { method: 'POST', body: formData });
+      const msg = await res.text();
+      if (res.ok) {
+        document.getElementById('generateStatus').textContent = "¡PDF generado!";
+          // Avanzar al paso 3
+          document.getElementById('step2').classList.remove('active');
+          document.getElementById('step3').classList.add('active');
+        const link = document.getElementById('downloadLink');
+        link.href = '/download?folder='+encodeURIComponent(pdfName);
+        link.style.display = 'block';
+        link.textContent = 'Descargar PDF Unificado';
+      } else {
+        document.getElementById('generateStatus').textContent = msg;
+        document.getElementById('generateStatus').classList.add('error');
+      }
+    }
+  </script>
+</body>
+</html>
