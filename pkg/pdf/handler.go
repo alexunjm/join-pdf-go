@@ -160,8 +160,11 @@ func AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 
 // --- Handlers Existentes Modificados para Usar el Código de Usuario ---
 
+// Variable para facilitar el testing
+var getUserStoragePathFn = defaultGetUserStoragePath
+
 // Helper para obtener la ruta base de almacenamiento del usuario
-func getUserStoragePath(r *http.Request) (string, error) {
+func defaultGetUserStoragePath(r *http.Request) (string, error) {
 	// Obtener el código de usuario del contexto (establecido por el middleware)
 	userCode, ok := r.Context().Value(userCodeKey).(string)
 	if !ok {
@@ -178,7 +181,7 @@ func getUserStoragePath(r *http.Request) (string, error) {
 func ListHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Obtener la ruta base de almacenamiento del usuario
-	userStoragePath, err := getUserStoragePath(r)
+	userStoragePath, err := getUserStoragePathFn(r)
 	if err != nil {
 		http.Error(w, "Error interno de autenticación", http.StatusInternalServerError)
 		return
@@ -209,7 +212,7 @@ func UploadHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Obtener la ruta base de almacenamiento del usuario
-	userStoragePath, err := getUserStoragePath(r)
+	userStoragePath, err := getUserStoragePathFn(r)
 	if err != nil {
 		http.Error(w, "Error interno de autenticación", http.StatusInternalServerError)
 		return
@@ -332,7 +335,7 @@ func GenerateHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Obtener la ruta base de almacenamiento del usuario
-	userStoragePath, err := getUserStoragePath(r)
+	userStoragePath, err := getUserStoragePathFn(r)
 	if err != nil {
 		http.Error(w, "Error interno de autenticación", http.StatusInternalServerError)
 		return
@@ -378,7 +381,7 @@ func joinPDFs(path, folder string) error {
 
 func DownloadHandler(w http.ResponseWriter, r *http.Request) {
 	// Obtener la ruta base de almacenamiento del usuario
-	userStoragePath, err := getUserStoragePath(r)
+	userStoragePath, err := getUserStoragePathFn(r)
 	if err != nil {
 		http.Error(w, "Error interno de autenticación", http.StatusInternalServerError)
 		return
@@ -390,4 +393,69 @@ func DownloadHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	pdfPath := filepath.Join(userStoragePath, folder+".pdf")
 	http.ServeFile(w, r, pdfPath)
+}
+
+// DeleteFilesHandler maneja la eliminación de archivos PDF
+func DeleteFilesHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodDelete {
+		http.Error(w, "Método no permitido", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Decodificar el cuerpo de la solicitud
+	var req DeleteFilesRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Error al decodificar la solicitud", http.StatusBadRequest)
+		return
+	}
+
+	// Validar que se proporcionó una carpeta
+	if req.Folder == "" {
+		http.Error(w, "Falta el nombre de la carpeta", http.StatusBadRequest)
+		return
+	}
+
+	// Obtener la ruta base de almacenamiento del usuario
+	userStoragePath, err := getUserStoragePathFn(r)
+	if err != nil {
+		http.Error(w, "Error interno de autenticación", http.StatusInternalServerError)
+		return
+	}
+
+	folderPath := filepath.Join(userStoragePath, req.Folder)
+
+	// Si no se especifican archivos, eliminar todos
+	if len(req.Files) == 0 {
+		files, err := ListFilesWithExtension(folderPath, ".pdf")
+		if err != nil {
+			http.Error(w, "Error al listar archivos", http.StatusInternalServerError)
+			return
+		}
+		req.Files = files
+	}
+
+	// Verificar que todos los archivos existen antes de eliminar
+	for _, filename := range req.Files {
+		if !strings.HasSuffix(filename, ".pdf") {
+			http.Error(w, "Tipo de archivo no permitido", http.StatusBadRequest)
+			return
+		}
+		filePath := filepath.Join(folderPath, filename)
+		if _, err := os.Stat(filePath); os.IsNotExist(err) {
+			http.Error(w, fmt.Sprintf("Archivo no encontrado: %s", filename), http.StatusBadRequest)
+			return
+		}
+	}
+
+	// Eliminar los archivos
+	for _, filename := range req.Files {
+		filePath := filepath.Join(folderPath, filename)
+		if err := os.Remove(filePath); err != nil {
+			http.Error(w, fmt.Sprintf("Error al eliminar archivo %s: %v", filename, err), http.StatusInternalServerError)
+			return
+		}
+	}
+
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("Archivos eliminados correctamente"))
 }

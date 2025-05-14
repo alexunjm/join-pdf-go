@@ -57,6 +57,7 @@ func main() {
 	http.HandleFunc("/list", pdf.AuthMiddleware(pdf.ListHandler))
 	http.HandleFunc("/generate", pdf.AuthMiddleware(pdf.GenerateHandler))
 	http.HandleFunc("/download", pdf.AuthMiddleware(pdf.DownloadHandler))
+	http.HandleFunc("/delete", pdf.AuthMiddleware(pdf.DeleteFilesHandler))
 
 	fmt.Println("Server starting on :8080") // Mensaje de inicio del servidor
 	log.Fatal(http.ListenAndServe(":8080", nil))

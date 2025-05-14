@@ -73,6 +73,34 @@
       border-radius: 4px;
       color: #2563eb;
       font-size: 0.98em;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .delete-btn {
+      background: #ef4444;
+      color: white;
+      border: none;
+      padding: 4px 8px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.8em;
+    }
+    .delete-btn:hover {
+      background: #dc2626;
+    }
+    .delete-all-btn {
+      background: #dc2626;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 4px;
+      cursor: pointer;
+      margin-bottom: 12px;
+      width: 100%;
+    }
+    .delete-all-btn:hover {
+      background: #b91c1c;
     }
     .status {
       margin: 10px 0 0 0;
@@ -116,6 +144,7 @@
         </form>
       <div class="status" id="uploadStatus"></div>
 
+      <button class="delete-all-btn" onclick="deleteAllFiles()" style="display: none;">Eliminar Todos</button>
       <ul id="fileList"></ul>
       <button id="generateBtn" disabled onclick="unirPDFs()">Unir PDFs</button>
       <div class="status" id="generateStatus"></div>
@@ -138,8 +167,8 @@
       pdfName = nameInput.value.trim();
       document.getElementById('step1').classList.remove('active');
       document.getElementById('step2').classList.add('active');
-          listarArchivos();
-      document.getElementById('uploadFolder').value = pdfName
+      listarArchivos();
+      document.getElementById('uploadFolder').value = pdfName;
     }
 
     // Paso 2: Subir archivos
@@ -163,7 +192,7 @@
         document.getElementById('uploadStatus').classList.add('error');
       }
     };
-    document.getElementById('uploadForm').onsubmit = uploadFormFn
+    document.getElementById('uploadForm').onsubmit = uploadFormFn;
 
     // Paso 3: Listar archivos
     async function listarArchivos() {
@@ -173,10 +202,72 @@
       ul.innerHTML = '';
       files.forEach(f => {
         const li = document.createElement('li');
-        li.textContent = f;
+        li.innerHTML = `
+          ${f}
+          <button class="delete-btn" onclick="deleteFile('${f}')">Eliminar</button>
+        `;
         ul.appendChild(li);
       });
       document.getElementById('generateBtn').disabled = files.length === 0;
+      document.querySelector('.delete-all-btn').style.display = files.length > 0 ? 'block' : 'none';
+    }
+
+    // Eliminar un archivo específico
+    async function deleteFile(filename) {
+      try {
+        const res = await fetch('/delete', {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            folder: pdfName,
+            files: [filename]
+          })
+        });
+
+        if (res.ok) {
+          document.getElementById('uploadStatus').textContent = "Archivo eliminado correctamente";
+          document.getElementById('uploadStatus').classList.remove('error');
+          listarArchivos();
+        } else {
+          const error = await res.text();
+          document.getElementById('uploadStatus').textContent = error;
+          document.getElementById('uploadStatus').classList.add('error');
+        }
+      } catch (err) {
+        document.getElementById('uploadStatus').textContent = "Error al eliminar archivo";
+        document.getElementById('uploadStatus').classList.add('error');
+      }
+    }
+
+    // Eliminar todos los archivos
+    async function deleteAllFiles() {
+      try {
+        const res = await fetch('/delete', {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            folder: pdfName,
+            files: []
+          })
+        });
+
+        if (res.ok) {
+          document.getElementById('uploadStatus').textContent = "Todos los archivos eliminados";
+          document.getElementById('uploadStatus').classList.remove('error');
+          listarArchivos();
+        } else {
+          const error = await res.text();
+          document.getElementById('uploadStatus').textContent = error;
+          document.getElementById('uploadStatus').classList.add('error');
+        }
+      } catch (err) {
+        document.getElementById('uploadStatus').textContent = "Error al eliminar archivos";
+        document.getElementById('uploadStatus').classList.add('error');
+      }
     }
 
     // Paso 3: Unir PDFs
@@ -188,9 +279,9 @@
       const msg = await res.text();
       if (res.ok) {
         document.getElementById('generateStatus').textContent = "¡PDF generado!";
-          // Avanzar al paso 3
-          document.getElementById('step2').classList.remove('active');
-          document.getElementById('step3').classList.add('active');
+        // Avanzar al paso 3
+        document.getElementById('step2').classList.remove('active');
+        document.getElementById('step3').classList.add('active');
         const link = document.getElementById('downloadLink');
         link.href = '/download?folder='+encodeURIComponent(pdfName);
         link.style.display = 'block';
