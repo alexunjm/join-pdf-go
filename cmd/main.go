@@ -1,12 +1,5 @@
 package main
 
-// El objetivo es:
-// 1.  Añadir los nuevos endpoints (`/generate-code` y `/login`) definidos en el paquete `pdf` (del paso anterior).
-// 2.  Aplicar el `AuthMiddleware` a los handlers que ahora requieren autenticación (`/upload`, `/list`, `/generate`, `/download`).
-// 3.  Mantener el `viewHandler` para servir una página HTML (`view.html`) que contendrá los formularios para generar código y para iniciar sesión.
-
-// Aquí está el código `main.go` modificado y la explicación arquitectónica:
-
 import (
 	"fmt"
 	"local-pruebas/pkg/pdf" // Asegúrate de que esta ruta de importación sea correcta para tu proyecto

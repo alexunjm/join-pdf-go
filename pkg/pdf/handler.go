@@ -298,21 +298,20 @@ func ListFilesWithExtension(dir string, ext string) ([]string, error) {
 	// Ordenar los archivos basándose en el primer número encontrado en el nombre
 	sort.Slice(matchedFiles, func(i, j int) bool {
 		// Expresión regular para encontrar números
-		re := regexp.MustCompile(`[0-9] `)
+		re := regexp.MustCompile(`\d+`)
 
 		// Encontrar todos los números en ambos nombres de archivo
-		foundN1 := re.FindAllString(matchedFiles[i], -1)
-		foundN2 := re.FindAllString(matchedFiles[j], -1)
+		foundN1 := re.FindString(matchedFiles[i])
+		foundN2 := re.FindString(matchedFiles[j])
 
 		// Si alguno no tiene números o hay algún problema, usar orden alfabético (simplificado)
-		// Para robustez, se deberían manejar estos casos explícitamente.
-		if len(foundN1) == 0 || len(foundN2) == 0 {
+		if foundN1 == "" || foundN2 == "" {
 			return matchedFiles[i] < matchedFiles[j] // Fallback alfabético
 		}
 
 		// Convertir el primer número encontrado a entero
-		n1, err1 := strconv.Atoi(foundN1[0])
-		n2, err2 := strconv.Atoi(foundN2[0])
+		n1, err1 := strconv.Atoi(foundN1)
+		n2, err2 := strconv.Atoi(foundN2)
 
 		// Si la conversión falla, usar orden alfabético (simplificado)
 		if err1 != nil || err2 != nil {
